@@ -7,24 +7,41 @@
 #include <string.h>
 
 #define NUM_CHILD 20
+
+// mask variable to check interrupt
 static volatile int mask = 0;
+
+// array store id of terminated proccess after recieved interrupt signal
 static int term_child[NUM_CHILD] = {0};
+
+// array store
 static volatile int array[NUM_CHILD] = {0};
+
+// variable for counting number of terminated processes after
+// recieved interrupt signal
 static volatile int count = 0;
 
+
+// function that handle to ignore all signal
 static void ignore_all_signal(int sig) {
 }
 
+
+// function handle interrupt signal
 void interrupt_handler(int sig) {
 	//signal(SIGINT, SIG_DFL);
 	mask = 1;
 	printf("\nparent[%d]: recieved SIGINT.\n", getpid());
 }
+
+// function handle termination signal
 void terminate_handler(int sig) {
 	signal(SIGTERM, SIG_IGN);
 	printf("child[%d]: recieved SIGTERM, terminating.\n", getpid());
 }
 
+
+// function check a process id is in array or not
 int check_term(int pid, int array[]) {
 	for (int i=0; i<NUM_CHILD; i++) {
 		if (pid == array[i]) {
@@ -34,6 +51,8 @@ int check_term(int pid, int array[]) {
 
 	return 0;
 }
+
+// child function for signal case compilation
 void child_function_with_signal() {
 	/*
 	for (int i=0; i<31; i++) {
@@ -54,12 +73,16 @@ void child_function_with_signal() {
 	exit(0);
 }
 
+
+// child function for non signal case compilation
 void child_function_without_signal() {
 	printf("child[%d]: created from parent[%d].\n", getpid(), getppid());
 	sleep(10);
 	printf("child[%d]: excution completed.\n", getpid());
 	exit(0);
 }
+
+// parent function for signal case compilation
 void parent_function_with_signal(int pid) {
 	signal(SIGINT, interrupt_handler);
 	if (mask != 0) {
@@ -78,34 +101,51 @@ void parent_function_with_signal(int pid) {
 	}
 }
 
+// parent function for non-signal case compilation
 void parent_function_without_signal(int pid) {
 	printf("parent[%d]: creating child[%d]...\n", getpid(), pid);
 }
+
+
 int main (int argc, char *argv[]) {
 	
 	pid_t pid;
 	int terminated_children = 0;
-
+	
+	// creating NUM_CHILD number of processes
 	for (int i=0; i<NUM_CHILD; i++) {
 		pid = fork();
 		sleep(1);
+
+		// case when can not create a new process
 		if (pid < 0) {
 			printf("parent[%d]: Error while creating process.\n", getpid());
 			kill(0, SIGTERM);
 			exit(1);
 		}
+
+		// case when process is child process
 		else if (pid == 0) {
+
+			// check command line parameter has "WITH_SIGNALS" or not
+			// if it has, do the case with signal
 			if (argc == 2 && strcmp(argv[1], "WITH_SIGNALS") == 0) {
 				child_function_with_signal();
 			}
+			// else do the case with non signal
 			else {
 				child_function_without_signal();
 			}
 		}
+
+		// case when process is parent process
 		else {
+			// check command line parameter has "WITH_SIGNALS" or not
+			// If it has, do the case with sinal
 			if (argc == 2 && strcmp(argv[1], "WITH_SIGNALS") == 0) {
 				parent_function_with_signal(pid);
 			}
+			// else, do the case with non-signal
 			else {
 				parent_function_without_signal(pid);
 			}
@@ -114,7 +154,11 @@ int main (int argc, char *argv[]) {
 	
 	int status;
 	for(;;) {
+
+		// parent waiting from system
 		pid_t end = wait(&status);
+
+		// if it has no child process
 		if (end == -1) {
 			printf("parent[%d]: no more processes to be synchronized with the parent.\n", getpid());
 			printf("parent[%d]: number of terminated children is %d.\n", getpid(), terminated_children);
@@ -132,6 +176,7 @@ int main (int argc, char *argv[]) {
 				printf("child[%d]: stopped.\n", pid);
 			}
 		}
+		//  count terminated processes
 		terminated_children ++;
 	}	
 	return 0;
