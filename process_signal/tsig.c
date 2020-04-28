@@ -15,7 +15,7 @@ static volatile int terminated_children = 0;
 static volatile int is_parent = 1;
 static volatile int is_child = 1;
 static volatile int with_signals = 0;
-static volatile int array[NUM_CHILD] = {0};
+static volatile pid_t array[NUM_CHILD] = {0};
 static volatile int count = 0;
 
 
@@ -65,30 +65,13 @@ static void signal_handler(int sig) {
 
 int main(int argc, char *argv[]) {
 
+	struct sigaction act;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+	act.sa_handler = signal_handler;
 	// if complied with command line argument is WITH_SIGNALS
 	if (argc == 2 && strcmp(argv[1], "WITH_SIGNALS") == 0) {
 		with_signals = 1;
-
-		// declare sigaction, set handler and flags for this act
-		struct sigaction act;
-		sigemptyset(&act.sa_mask);
-		act.sa_flags = 0;
-		act.sa_handler = signal_handler;
-
-		if (sigaction(SIGCHLD, &act, NULL) == -1) {
-			perror ("Error while handling SIGCHLD.\n");
-			exit(1);
-		}
-		
-		if (sigaction(SIGINT, &act, NULL) == -1) {
-			perror ("Error while handling SIGINT.\n");
-			exit(1);
-		}
-
-		if (sigaction(SIGTERM, &act, NULL) == -1) {
-			perror ("Error while handling SIGTERM.\n");
-			exit(1);
-		}
 	}
 
 	// create NUM_CHILD child process with the same parent
@@ -110,13 +93,11 @@ int main(int argc, char *argv[]) {
 
 			// in case WITH_SIGNALS
 			if (with_signals) {
-
-				// ignore all SIGNAL
-				for (int s=0; s<31; s++) {
-					signal(s, SIG_IGN);
+				signal(SIGINT, SIG_IGN);
+				if (sigaction(SIGTERM, &act, NULL) == -1) {
+					perror ("Error while handling SIGTERM.\n");
+					exit(1);
 				}
-				// restore handler of SIGCHLD to default
-				signal(SIGCHLD, SIG_DFL);
 			}
 			
 			// child process actions
@@ -132,6 +113,21 @@ int main(int argc, char *argv[]) {
 			// in case WITH_SIGNALS
 			if (with_signals) {
 				
+				// ignore all SIGNAL
+				for (int s=0; s<31; s++) {
+					signal(s, SIG_IGN);
+				}
+				// restore handler of SIGCHLD to default
+				if (sigaction(SIGCHLD, &act, NULL) == -1) {
+					perror ("Error while handling SIGCHLD.\n");
+					exit(1);
+				}
+
+				if (sigaction(SIGINT, &act, NULL) == -1) {
+					perror ("Error while handling SIGINT.\n");
+					exit(1);
+				}
+
 				// check if is has keyboard interrupt
 				if (mask !=0 ) {
 					printf("parent[%d]: sending SIGTERM.\n", getpid());
@@ -147,7 +143,7 @@ int main(int argc, char *argv[]) {
 				}
 				count++;
 			}	
-			printf("parent[%d]: created a child process.\n", getpid());
+			printf("parent[%d]: created child[%d].\n", getpid(), pid);
 		}
 		sleep(1);
 	}
