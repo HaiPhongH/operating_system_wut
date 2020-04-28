@@ -7,8 +7,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#define NUM_CHILD 20
+# define NUM_CHILD 20
 
+// global variable using for all processes
 static volatile int mask = 0;
 static volatile int terminated_children = 0;
 static volatile int is_parent = 1;
@@ -17,27 +18,39 @@ static volatile int with_signals = 0;
 static volatile int array[NUM_CHILD] = {0};
 static volatile int count = 0;
 
+
+// function handle signals
+// SIGCHLD and SIGINT for parent process
+// SIGTERM for child process
+
 static void signal_handler(int sig) {
 	switch (sig) {
+
+		// handle SIGCHLD signal
 		case SIGCHLD: {
 			int status;
 			pid_t pid;
+
+			// waiting for SIGCHLD signal
 			while ((pid = waitpid(-1, &status, 0)) > 0) {
 				printf("parent[%d]: terminated child[%d].\n", getpid(), pid);
 				terminated_children++;
 			}
 			break;
 		}
+		// handle SIGINT signal
 		case SIGINT: {
+			// only if the process is parent and in case "WITH_SIGNALS"
 			if (is_parent && with_signals) {
 				mask = 1;
 				printf("\nparent[%d]: recieved SIGINT.\n", getpid());
 			}
 			break;
 		}
+		// handle SIGTERM signal
 		case SIGTERM: {
+			// only if the process is child and in case "WITH_SIGNALS"
 			if (is_child && with_signals) {
-				signal(SIGTERM, SIG_IGN);
 				printf("child[%d]: recieved SIGTERM, terminating.\n", getpid());
 			}
 			break;	      
@@ -50,12 +63,14 @@ static void signal_handler(int sig) {
 }
 
 
-
 int main(int argc, char *argv[]) {
+
+	// if complied with command line argument is WITH_SIGNALS
 	if (argc == 2 && strcmp(argv[1], "WITH_SIGNALS") == 0) {
 		with_signals = 1;
+
+		// declare sigaction, set handler and flags for this act
 		struct sigaction act;
-		
 		sigemptyset(&act.sa_mask);
 		act.sa_flags = 0;
 		act.sa_handler = signal_handler;
@@ -75,37 +90,53 @@ int main(int argc, char *argv[]) {
 			exit(1);
 		}
 	}
+
+	// create NUM_CHILD child process with the same parent
 	pid_t pid;
 	for (int i = 0; i < NUM_CHILD; i++) {
 		pid = fork();
-
+		
+		// Can fork a new child process
 		if (pid<0) {
 			perror("Error while creating process.\n");
+			// sending SIGTERM to all child process
 			kill(0, SIGTERM);
-			exit(0);
+			exit(1);
 		}
+		// If process is child process
 		else if (pid == 0) {
 			is_parent = 0;
 			is_child = 1;
+
+			// in case WITH_SIGNALS
 			if (with_signals) {
+
+				// ignore all SIGNAL
 				for (int s=0; s<31; s++) {
 					signal(s, SIG_IGN);
 				}
+				// restore handler of SIGCHLD to default
 				signal(SIGCHLD, SIG_DFL);
-				signal(SIGTERM, SIG_DFL);
 			}
-
+			
+			// child process actions
 			printf("child[%d]: parent process id is %d.\n", getpid(), getppid());
 			sleep(10);
 			printf("child[%d]: excution completed.\n", getpid());
 			exit(0);
 		}
+		// If process is parent process
 		else {
 			is_parent = 1;
 			is_child = 0;
+			// in case WITH_SIGNALS
 			if (with_signals) {
+				
+				// check if is has keyboard interrupt
 				if (mask !=0 ) {
 					printf("parent[%d]: sending SIGTERM.\n", getpid());
+
+					// sending SIGTERM sinal to all created child process
 					for (int term=0; term<count; term++) {
 						kill(array[term], SIGTERM);
 					}
@@ -120,7 +151,8 @@ int main(int argc, char *argv[]) {
 		}
 		sleep(1);
 	}
-
+	
+	// check to see if no more process to be synchronized with the parent
 	for (;;) {
 		pid_t end = wait(NULL);
 		if (end == -1) {
