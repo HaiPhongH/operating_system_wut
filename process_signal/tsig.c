@@ -45,7 +45,7 @@ static void signal_handler(int sig) {
 			// waiting for SIGCHLD signal
 			while ((pid = waitpid(-1, &status, 0)) > 0) {
 				printf("parent[%d]: terminated child[%d].\n", getpid(), pid);
-				// increase terminated children when parent recieved a SIGCHLD process
+				// increase terminated children when parent received a SIGCHLD process
 				terminated_children++;
 			}
 			break;
@@ -57,7 +57,7 @@ static void signal_handler(int sig) {
 				// change the mask for checking keyboard interrupt to 1, that means occurred
 				mask = 1;
 				// parent showing a message about recieving SIGINT signal
-				printf("\nparent[%d]: recieved SIGINT.\n", getpid());
+				printf("\nparent[%d]: received SIGINT.\n", getpid());
 			}
 			break;
 		}
@@ -66,7 +66,7 @@ static void signal_handler(int sig) {
 			// only if the process is child and in case "WITH_SIGNALS"
 			if (is_child && with_signals) {
 				// child showing a message about recieving SIGTERM signal
-				printf("child[%d]: recieved SIGTERM, terminating.\n", getpid());
+				printf("child[%d]: received SIGTERM, terminating.\n", getpid());
 			}
 			break;	      
 		}
@@ -120,7 +120,7 @@ int main(int argc, char *argv[]) {
 
 				signal(SIGINT, SIG_IGN);
 
-				// handler while recieved SIGTERM signal, if an error occurred, then exit
+				// handler while received SIGTERM signal, if an error occurred, then exit
 				if (sigaction(SIGTERM, &act, NULL) == -1) {
 					perror ("Error while handling SIGTERM.\n");
 					exit(1);
@@ -145,13 +145,13 @@ int main(int argc, char *argv[]) {
 					signal(s, SIG_IGN);
 				}
 
-				// handler while recieved SIGCHLD signal, if an error occurred, then exit
+				// handler while received SIGCHLD signal, if an error occurred, then exit
 				if (sigaction(SIGCHLD, &act, NULL) == -1) {
 					perror ("Error while handling SIGCHLD.\n");
 					exit(1);
 				}
 
-				// handler while recieved SIGINT signal, if an error occurred, then exit
+				// handler while received SIGINT signal, if an error occurred, then exit
 				if (sigaction(SIGINT, &act, NULL) == -1) {
 					perror ("Error while handling SIGINT.\n");
 					exit(1);
