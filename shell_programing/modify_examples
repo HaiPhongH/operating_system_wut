@@ -1,0 +1,74 @@
+# Assume that we had a directory which has a tree-folder like this
+
+
+# .......
+# |
+# |--modify
+# |--modify_examples
+# |--level11_file.py
+# |--level12_file.py
+# |--another_level1_dir/
+#    |--file1.php
+#    |--tmp/
+#       |--file2.html
+# |--level1_dir/
+#    |
+#    |--level21_file.py
+#    |--level22_file.py
+#    |--level2_dir/
+#       |
+#       |--level31_file.py
+#       |--level32_file.py
+#       |--level3_dir/
+#          |
+#          |--final_file.py
+#
+#
+# This scrpit can change the name of sepecified files, directories into lowercase, uppercase or optional with sd pattern. 
+# The user can choose recursion mode, which will change the name of current directory and whole files and subdirectories inside this folder.
+#
+# Some scenarios can happen when the user run this script
+#
+# ----1.The script won't change anything of the name if the user want to change the name already is in "lowercase/uppercase" into "lowercase/uppercase"
+# 
+ command:	./modify -l level11_file.py
+#
+#
+# ----2.User can put many files and directories as the input.
+#
+ command:	./modify sed s/level1/level1_1/ level11_file.py level12_file.py level1_dir/
+		./modify -u level11_file.py level12.py
+#
+# ----3.If the user run command within -r tag, the input has to be some directories name, filename is not excepted here.
+#
+ correct command:	./modify -r -u level1_dir/ another_level1_dir/
+ incorrect command:	./modify -r -u level11_file.py
+#
+# 	But the command still work if user put the previous input is names of directory. In that case, command will change name of directories and return a error when meet file name.
+ 	command		./modify -r -u level1_dir/ another_level1_dir/	level11_file.py
+#
+#
+# ----4.If the user run command without -r tag, input can be specified files and folder.
+#
+ command:	./modify -u level1_dir/ level11_file.py level12_file.py
+#
+#
+# ----5.The user shouldn't put more than 1 tag -l, -u or sed togeter. Because the script will only excute with the last tag.
+# 
+ command:	./modify -u -l sed s/dir/directory/ level1_dir/
+# result:	The script will change "level1_dir" into "level1_directory"
+#
+#
+# ----6.The command won't return anything if missing the control tags (-l, -u, -h or sed). Even use only -r, tag -r is an option, it will be used in case changing any files, folders in directory.
+#
+ command:	./modify level11_file.py
+ 		./modify -r level11_file.py
+# 	But when the user run a command with -h tag, it always show the usage of this script.
+ command:	./modify -h -u level11_file.py
+# result:	Show usage of the script and change name of level11_file.py into uppercase.
+#
+# ----7.The command will return an error message if there is something wrong in the input, for instance, files-directories doesn't exist, incorrect sed pattern.
+#
+ command:	./modify -u doesnt_exist.py doesnt_exist/
+ 		./modify sed incorrect_pattern level11_file.py
+#
