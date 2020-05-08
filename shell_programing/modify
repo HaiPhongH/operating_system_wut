@@ -1,0 +1,201 @@
+#!/bin/sh
+
+# filename without path
+name=`basename $0`
+
+# function for changing file name or folder name
+change_name(){
+	if test -f $1 -o -d $1
+	then
+		path=$1				# full path to file or directory
+		basename=$(basename "$path")	# file name or directory name
+		dirname=$(dirname "$path")	# path without file name or current directory
+		
+		case $2 in
+			l)	# change name to lowercase
+				if test -f $1		# if this is a file
+				then
+					# change the filename into lowercase without changing extension
+					newfile=$(echo "${basename%.*}" | tr '[:upper:]' '[:lower:]')
+					
+					# move to the new file ignore the output.
+					mv -- "$1" "$dirname/$newfile.${basename##*.}" 2>/dev/null; true	
+				elif test -d $1		# if this is a directory
+				then
+					# change the dirname into lowercase 
+					newdir=$(echo "$basename" | tr '[:upper:]' '[:lower:]')
+					
+					# move to the new directory ignore the output.
+					mv "$1" "$dirname/$newdir/" 2>/dev/null; true
+				fi
+				;;
+			u)	# change name to uppercase
+				if test -f $1		# if this is a file
+				then
+					# change the filename into uppercase without changing extension 
+					newfile=$(echo "${basename%.*}" | tr '[:lower:]' '[:upper:]')
+					
+					# move to the new file ignore the output.
+					mv -- "$1" "$dirname/$newfile.${basename##*.}" 2>/dev/null; true
+				elif test -d $1		# if this is a directory
+				then
+					# change the dirname into uppercase
+					newdir=$(echo "$basename" | tr '[:lower:]' '[:upper:]')
+					
+					# move to the new directory ignore the output.
+					mv "$1" "$dirname/$newdir/" 2>/dev/null; true
+				fi
+				;;
+			sed)	# change name with sed
+				if test -f $1		# if this is a file
+				then
+					if test "x$3" != "x"
+					then
+						# change the filename using given sed pattern stored in $3
+						newfile=$(echo "${basename%.*}" | sed $3)
+					
+						# move to the new file and ignore the output.
+						mv -- "$1" "$dirname/$newfile.${basename##*.}" 2>/dev/null; true
+					else
+						echo "Missing sed pattern"
+						exit 1
+					fi	
+				elif test -d $1		# if this is a directory
+				then
+					if test  "x$3" != "x"
+					then
+						# change the directory name using given sed pattern stored in $3
+						newdir=$(echo "$basename" | sed $3)
+					
+						# move to the newdirectory and ignore the output.
+						mv "$1" "$dirname/$newdir/" 2>/dev/null; true
+					else
+						echo "Missing sed pattern"
+						exit 1
+					fi
+				fi
+				;;
+		esac
+
+	else	# If input argument is not a file or directory
+		echo "No such file or directory $1"
+		exit 1
+	fi
+}
+
+# do with command line arguments
+r=n	# para to check the user used recursion option or not
+l=n	# para to check the user used lowercase option or not
+u=n	# para to check the user used uppercase option or not
+s=n	# para to check the user used sed option or not
+h=n	# para to check the user used help option or not
+pattern=''	# para to save sed pattern
+while test "x$1" != "x"		
+do
+	case "$1" in
+		-r) r=y;;
+		-l) l=y; u=n; s=n;;
+		-u) u=y; l=n; s=n;;
+		-h) h=y; l=n; u=n; r=n; s=n;;
+		sed) s=y
+		     l=n
+		     u=n
+		     pattern=$2
+		     shift
+		     ;;
+		*)
+			if test $r = "y"	# change name recursively
+			then
+				if test -d $1	# change name only if it is directory
+				then
+					# firstly, find and change the current directory name and all the subdirectory
+					# secondly, find and change all the file name in this current directory
+					
+					# find current directory and all its subdirectories
+					listdir=`find $1 -depth -type d -name "*"`	
+					if test $l = "y"	# in case changing to lowercase
+					then
+						for ld in $listdir	# loop over all directories
+						do
+							change_name "$ld" "l"	# change the name to lowercase
+						done
+						# find the new directory name after changing
+						newdir=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+						# find all the files in current directory
+						listfile=`find $newdir -depth -type f -name "*"`
+						for lf in $listfile	# loop over all files
+						do
+							change_name "$lf" "l"	# change the name to lowercase
+						done
+					elif test $u = "y"	# in case changing to uppercase
+					then
+						for ld in $listdir	# loop over all directories
+						do
+							change_name "$ld" "u"	# change the name to uppercase
+						done
+						# find the new directory name after changing
+						newdir=$(echo "$1" | tr '[:lower:]' '[:upper:]')
+						# find all the files in current directory
+						listfile=`find $newdir -depth -type f -name "*"`	
+						for lf in $listfile	# loop over all files
+						do
+							change_name "$lf" "u"	# change the name to uppercase
+						done
+					elif test $s = "y"	# in case using sed pattern
+					then
+						for ld in $listdir	# loop over all directories
+						do
+							change_name "$ld" "sed" "$pattern"	# change the name using sed pattern
+						done
+						# find the new directory name after changing
+						newdir=$(echo "$1" | sed $pattern)
+						# find all the files in current directory
+						listfile=`find $newdir -depth -type f -name "*"`
+						for lf in $listfile	# loop over all files
+						do
+							change_name "$lf" "sed" "$pattern"	# change the name using sed pattern
+						done
+					fi
+				else	# if this is not a directory
+					echo "$1 is not a directory"
+					exit 1
+				fi
+			else	# change name of specified files and directory
+				if test $l = "y"
+				then
+					change_name "$1" "l"			# change name to lowercase
+				elif test $u = "y"
+				then
+					change_name "$1" "u"			# change name to uppercase
+				elif test $s = "y"
+				then
+					change_name "$1" "sed" "$pattern"	# change name using sed pattern
+				fi
+			fi
+			;;
+	esac
+	shift
+done
+
+# something for help
+if test $h = "y"
+then
+cat<<EOT 1>&2
+usage:
+  $name [-r] [-l|-u] <file/directory names>
+  $name [-r] <sed pattern> <file/directory names>
+  $name [-h]
+
+$name correct syntax examples:
+  $name -l LEVEL1_DIR/ LEVEL1_FILE.py
+  $name -u level1_dir/ level1_file.py
+  $name -r -u level1_dir/
+  $name sed 's/level/changed_level/' level1_dir/ level1_file.py
+  $name -r sed s/level/changed_level/ level1_dir/
+
+$name incorrect syntax example:
+  $name -r -u level1_file.py
+  $name level1_file.py
+  $name sed this_is_wrong_pattern level1_file.py
+EOT
+fi
